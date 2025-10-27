@@ -13,6 +13,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
+import com.example.lab_week_08.worker.ThirdWorker
 
 class MainActivity : AppCompatActivity() {
     //Create an instance of a work manager
@@ -91,6 +92,24 @@ class MainActivity : AppCompatActivity() {
                 if (info.state.isFinished) {
                     showResult("Second process is done")
                     launchNotificationService()
+
+                    // After the first NotificationService is done,
+                    // start ThirdWorker
+                    val thirdRequest = OneTimeWorkRequest
+                        .Builder(ThirdWorker::class.java)
+                        .setConstraints(networkConstraints)
+                        .setInputData(getIdInputData(ThirdWorker.INPUT_DATA_ID, id))
+                        .build()
+
+                    workManager.enqueue(thirdRequest)
+
+                    workManager.getWorkInfoByIdLiveData(thirdRequest.id)
+                        .observe(this) { thirdInfo ->
+                            if (thirdInfo.state.isFinished) {
+                                showResult("Third process is done")
+                                launchSecondNotificationService()
+                            }
+                        }
                 }
             }
     }
@@ -120,6 +139,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         //Start the foreground service through the Service Intent
+        ContextCompat.startForegroundService(this, serviceIntent)
+    }
+    private fun launchSecondNotificationService() {
+        SecondNotificationService.trackingCompletion.observe(this) { Id ->
+            showResult("Final Notification Channel ID $Id is done!")
+        }
+
+        val serviceIntent = Intent(this, SecondNotificationService::class.java).apply {
+            putExtra(EXTRA_ID, "002")
+        }
         ContextCompat.startForegroundService(this, serviceIntent)
     }
     companion object{
